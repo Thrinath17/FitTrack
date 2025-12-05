@@ -3,15 +3,16 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSam
 import { AttendanceRecord, Workout } from '../../types';
 import { CheckCircle, XCircle, ChevronLeft, ChevronRight, Plus, Trash2, Dumbbell, X, Calendar as CalendarIcon, ArrowLeft } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { useWorkoutExecution } from '../../contexts/WorkoutExecutionContext';
 
 interface CalendarViewProps {
   records: AttendanceRecord[];
   workouts: Workout[];
   onUpdateRecord: (record: AttendanceRecord) => void;
-  executingWorkout: Workout | null;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ records, workouts, onUpdateRecord, executingWorkout }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ records, workouts, onUpdateRecord }) => {
+  const { executingWorkout } = useWorkoutExecution();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [showAddWorkout, setShowAddWorkout] = useState(false);
@@ -120,13 +121,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ records, workouts, o
       <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         {/* Calendar Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-          <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-white hover:shadow-sm text-slate-600 transition-all">
+          <button 
+            onClick={handlePrevMonth}
+            aria-label="Previous month"
+            className="p-2 rounded-full hover:bg-white hover:shadow-sm text-slate-600 transition-all"
+          >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <h2 className="text-lg font-semibold text-slate-800">
             {format(currentDate, 'MMMM yyyy')}
           </h2>
-          <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-white hover:shadow-sm text-slate-600 transition-all">
+          <button 
+            onClick={handleNextMonth}
+            aria-label="Next month"
+            className="p-2 rounded-full hover:bg-white hover:shadow-sm text-slate-600 transition-all"
+          >
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
@@ -269,7 +278,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ records, workouts, o
                   )}
                   {viewingWorkout && <h2 className="text-xl font-bold text-slate-900">Workout Details</h2>}
                </div>
-               <button onClick={closeModal} className="p-2 hover:bg-slate-100 rounded-full text-slate-500">
+               <button 
+                 onClick={closeModal}
+                 aria-label="Close modal"
+                 className="p-2 hover:bg-slate-100 rounded-full text-slate-500"
+               >
                  <X className="w-6 h-6" />
                </button>
             </div>
@@ -377,6 +390,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ records, workouts, o
                                             <div className="absolute top-4 right-4">
                                                 <button 
                                                     onClick={() => removeWorkoutFromDay(w.id, 'planned')}
+                                                    aria-label={`Remove planned ${w.name}`}
                                                     className="text-slate-300 hover:text-red-500 p-1 transition-colors"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -470,6 +484,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ records, workouts, o
                                             <div className="absolute top-4 right-4">
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); removeWorkoutFromDay(w.id, 'performed'); }}
+                                                    aria-label={`Remove ${w.name} from this day`}
                                                     className="text-slate-300 hover:text-red-500 p-1 transition-colors"
                                                 >
                                                     <Trash2 className="w-4 h-4" />

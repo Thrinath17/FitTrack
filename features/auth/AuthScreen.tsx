@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { AuthProvider } from '../../types';
 import { Apple, Mail } from 'lucide-react';
+import { validateEmail } from '../../utils/validation';
+import { ANIMATION_DELAY } from '../../utils/constants';
 
 interface AuthScreenProps {
   onLogin: (provider: AuthProvider, email?: string) => void;
@@ -12,6 +14,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   const handleSocialLogin = async (provider: AuthProvider) => {
     setIsLoading(true);
@@ -19,17 +22,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     setTimeout(() => {
       onLogin(provider);
       setIsLoading(false);
-    }, 1500);
+    }, ANIMATION_DELAY);
   };
 
   const handleEmailLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    setEmailError('');
+    
+    if (!email || !password) {
+      setEmailError('Please enter both email and password.');
+      return;
+    }
+    
+    if (!validateEmail(email)) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+    
     setIsLoading(true);
     setTimeout(() => {
       onLogin(AuthProvider.EMAIL, email);
       setIsLoading(false);
-    }, 1500);
+    }, ANIMATION_DELAY);
   };
 
   return (
@@ -51,6 +65,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   variant="secondary" 
                   onClick={() => handleSocialLogin(AuthProvider.GOOGLE)}
                   isLoading={isLoading}
+                  aria-label="Sign in with Google"
                 >
                   <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5 mr-2" alt="Google" />
                   Sign in with Google
@@ -61,6 +76,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   variant="secondary"
                   onClick={() => handleSocialLogin(AuthProvider.APPLE)}
                   isLoading={isLoading}
+                  aria-label="Sign in with Apple"
                 >
                   <Apple className="w-5 h-5 mr-2" />
                   Sign in with Apple
@@ -85,7 +101,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                 </Button>
               </div>
             ) : (
-              <form className="space-y-6" onSubmit={handleEmailLogin}>
+              <form className="space-y-6" onSubmit={handleEmailLogin} noValidate>
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-slate-700">
                     Email address
@@ -98,9 +114,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                       autoComplete="email"
                       required
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="appearance-none block w-full px-3 py-3 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setEmailError('');
+                      }}
+                      aria-invalid={!!emailError}
+                      aria-describedby={emailError ? 'email-error' : undefined}
+                      className={`appearance-none block w-full px-3 py-3 border rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm ${
+                        emailError ? 'border-red-300' : 'border-slate-300'
+                      }`}
                     />
+                    {emailError && (
+                      <p id="email-error" className="mt-1 text-sm text-red-600" role="alert">
+                        {emailError}
+                      </p>
+                    )}
                   </div>
                 </div>
 

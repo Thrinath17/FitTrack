@@ -2,24 +2,8 @@ import React, { useState } from 'react';
 import { Workout, Exercise } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Plus, Trash2 } from 'lucide-react';
-
-interface WorkoutEditorProps {
-  initialWorkout?: Workout | null;
-  onSave: (workout: Workout) => void;
-  onCancel: () => void;
-}
-
-// Fixed Default Color for all Workouts
-const DEFAULT_WORKOUT_COLOR = '#F97316'; // Orangish-red
-
-const generateLabel = (name: string): string => {
-    if (!name || !name.trim()) return 'W';
-    const words = name.trim().split(/\s+/);
-    if (words.length >= 2) {
-      return (words[0][0] + words[1][0]).toUpperCase();
-    }
-    return words[0].substring(0, 2).toUpperCase();
-};
+import { DEFAULT_WORKOUT_COLOR, generateLabel } from '../../utils/workoutUtils';
+import { validateWorkoutName, validateExerciseName, validateReps, validateWeight } from '../../utils/validation';
 
 export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ initialWorkout, onSave, onCancel }) => {
   const [name, setName] = useState(initialWorkout?.name || '');
@@ -58,6 +42,14 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ initialWorkout, on
   };
 
   const updateSet = (exerciseId: string, setId: string, field: 'reps' | 'weight', value: number) => {
+    // Validate input
+    if (field === 'reps' && !validateReps(value)) {
+      return; // Don't update if invalid
+    }
+    if (field === 'weight' && !validateWeight(value)) {
+      return; // Don't update if invalid
+    }
+
     setExercises(exercises.map(ex => {
       if (ex.id === exerciseId) {
         return {
@@ -82,15 +74,37 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ initialWorkout, on
   };
 
   const handleSave = () => {
-    if (!name.trim()) return; // Validation
+    // Validation
+    if (!validateWorkoutName(name)) {
+      alert('Please enter a valid workout name (1-50 characters).');
+      return;
+    }
+
+    // Validate exercises
+    for (const exercise of exercises) {
+      if (!validateExerciseName(exercise.name)) {
+        alert(`Please enter a valid name for all exercises.`);
+        return;
+      }
+      for (const set of exercise.sets) {
+        if (!validateReps(set.reps)) {
+          alert(`Invalid reps value for ${exercise.name}. Must be between 0 and 1000.`);
+          return;
+        }
+        if (set.weight !== undefined && !validateWeight(set.weight)) {
+          alert(`Invalid weight value for ${exercise.name}. Must be between 0 and 2000 lbs.`);
+          return;
+        }
+      }
+    }
     
     // Auto-generate abbreviation
     const finalAbbr = generateLabel(name);
 
     const workout: Workout = {
       id: initialWorkout?.id || Date.now().toString(),
-      name,
-      note,
+      name: name.trim(),
+      note: note?.trim() || undefined,
       exercises,
       createdAt: initialWorkout?.createdAt || Date.now(),
       color: DEFAULT_WORKOUT_COLOR,
@@ -113,12 +127,15 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ initialWorkout, on
       {/* Main Info Card */}
       <div className="bg-surface rounded-2xl p-6 shadow-sm border border-slate-100 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Routine Name</label>
+          <label htmlFor="workout-name" className="block text-sm font-medium text-slate-700 mb-1">Routine Name</label>
           <input 
+            id="workout-name"
             type="text" 
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Chest Day"
+            maxLength={50}
+            aria-label="Workout name"
             className="w-full text-lg font-semibold border-b border-slate-200 focus:border-primary focus:outline-none py-2 bg-transparent placeholder-slate-300"
             autoFocus={!initialWorkout}
           />
@@ -147,6 +164,7 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ initialWorkout, on
             <div className="absolute top-4 right-4">
                 <button 
                     onClick={() => handleRemoveExercise(exercise.id)}
+                    aria-label={`Remove ${exercise.name || 'exercise'}`}
                     className="text-slate-300 hover:text-red-500 transition-colors p-1"
                 >
                     <Trash2 className="w-4 h-4" />
@@ -160,6 +178,8 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ initialWorkout, on
                 value={exercise.name}
                 onChange={(e) => updateExercise(exercise.id, 'name', e.target.value)}
                 placeholder={`Exercise ${index + 1}`}
+                maxLength={100}
+                aria-label={`Exercise ${index + 1} name`}
                 className="block w-full font-medium text-slate-900 placeholder-slate-400 border-b border-transparent hover:border-slate-200 focus:border-primary focus:outline-none py-1 bg-transparent transition-colors"
               />
               <input 
