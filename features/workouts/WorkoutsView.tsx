@@ -1,9 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Workout, AttendanceRecord } from '../../types';
 import { WorkoutEditor } from './WorkoutEditor';
 import { Plus, ChevronRight, Trash2, Trophy, ChevronDown, Calendar as CalendarIcon, Check, ArrowLeft, Play, Edit2, Save, CheckCircle, RotateCcw, Clock, X } from 'lucide-react';
 import { startOfWeek, endOfWeek, isWithinInterval, parseISO, format, isSameDay, isAfter, startOfToday, subDays } from 'date-fns';
 import { Button } from '../../components/ui/Button';
+import { DEFAULT_WORKOUT_COLOR, generateLabel } from '../../utils/workoutUtils';
+import { RECENT_COMPLETION_WINDOW_MS, INTRO_ANIMATION_DURATION } from '../../utils/constants';
+import { useWorkoutExecution } from '../../contexts/WorkoutExecutionContext';
 
 interface WorkoutsViewProps {
   workouts: Workout[];
@@ -11,46 +14,28 @@ interface WorkoutsViewProps {
   onSaveWorkout: (workout: Workout) => void;
   onDeleteWorkout: (id: string) => void;
   onUpdateRecord: (record: AttendanceRecord) => void;
-  
-  // Lifted State Props
-  executingWorkout: Workout | null;
-  setExecutingWorkout: (workout: Workout | null) => void;
-  completedSetIds: Set<string>;
-  setCompletedSetIds: (ids: Set<string>) => void;
-  lastCompletedTime: number | null;
-  setLastCompletedTime: (time: number) => void;
 }
 
 type Tab = 'workouts' | 'schedule';
 type ScheduleStep = 'date' | 'template' | 'custom';
-
-// Updated Default Color (Orangish-red to match theme)
-const DEFAULT_WORKOUT_COLOR = '#F97316'; 
-
-const generateLabel = (name: string): string => {
-  if (!name || !name.trim()) return 'W';
-  const words = name.trim().split(/\s+/);
-  if (words.length >= 2) {
-    // First letter of first two words
-    return (words[0][0] + words[1][0]).toUpperCase();
-  }
-  // First two letters of first word
-  return words[0].substring(0, 2).toUpperCase();
-};
 
 export const WorkoutsView: React.FC<WorkoutsViewProps> = ({ 
     workouts, 
     attendance, 
     onSaveWorkout, 
     onDeleteWorkout, 
-    onUpdateRecord,
+    onUpdateRecord
+}) => {
+  // Use context instead of props
+  const {
     executingWorkout,
     setExecutingWorkout,
     completedSetIds,
     setCompletedSetIds,
     lastCompletedTime,
-    setLastCompletedTime
-}) => {
+    setLastCompletedTime,
+    toggleSetCompletion: contextToggleSetCompletion,
+  } = useWorkoutExecution();
   const [activeTab, setActiveTab] = useState<Tab>('workouts');
   
   // Editor States
@@ -78,7 +63,7 @@ export const WorkoutsView: React.FC<WorkoutsViewProps> = ({
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsIntro(false);
-    }, 2000);
+    }, INTRO_ANIMATION_DURATION);
     return () => clearTimeout(timer);
   }, []);
 
@@ -97,7 +82,7 @@ export const WorkoutsView: React.FC<WorkoutsViewProps> = ({
   }, [attendance, todayStr, executingWorkout]);
 
   const isRecentlyCompleted = useMemo(() => {
-      return !!(lastCompletedTime && Date.now() - lastCompletedTime < 60000 * 10 && !todaysPlannedWorkout);
+      return !!(lastCompletedTime && Date.now() - lastCompletedTime < RECENT_COMPLETION_WINDOW_MS && !todaysPlannedWorkout);
   }, [lastCompletedTime, todaysPlannedWorkout]);
 
   // --- Dynamic Motivational Messaging ---
@@ -318,15 +303,9 @@ export const WorkoutsView: React.FC<WorkoutsViewProps> = ({
       setIsExecutionOpen(false);
   };
 
-  const toggleSetCompletion = (setId: string) => {
-      const newSet = new Set(completedSetIds);
-      if (newSet.has(setId)) {
-          newSet.delete(setId);
-      } else {
-          newSet.add(setId);
-      }
-      setCompletedSetIds(newSet);
-  };
+  const toggleSetCompletion = useCallback((setId: string) => {
+    contextToggleSetCompletion(setId);
+  }, [contextToggleSetCompletion]);
 
   const addExerciseToExecution = () => {
       if (!executingWorkout) return;
@@ -494,11 +473,19 @@ export const WorkoutsView: React.FC<WorkoutsViewProps> = ({
               {/* Persistent Top Banner */}
               <div className="sticky top-0 z-40 bg-gradient-to-r from-red-500 via-orange-500 to-pink-500 text-white shadow-lg pb-4 pt-safe-top px-6 rounded-b-3xl flex-shrink-0 transition-all">
                   <div className="flex justify-between items-center mb-2 pt-2">
-                      <button onClick={minimizeExecution} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+                      <button 
+                        onClick={minimizeExecution} 
+                        aria-label="Minimize workout"
+                        className="p-1 hover:bg-white/20 rounded-full transition-colors"
+                      >
                           <ArrowLeft className="w-6 h-6 text-white" />
                       </button>
                       <h3 className="font-bold text-sm uppercase tracking-widest opacity-90">Workout In Progress</h3>
-                      <button onClick={cancelExecution} className="p-1 hover:bg-white/20 rounded-full transition-colors text-white/80 hover:text-white">
+                      <button 
+                        onClick={cancelExecution} 
+                        aria-label="Cancel workout"
+                        className="p-1 hover:bg-white/20 rounded-full transition-colors text-white/80 hover:text-white"
+                      >
                           <Trash2 className="w-5 h-5" />
                       </button>
                   </div>
@@ -568,7 +555,8 @@ export const WorkoutsView: React.FC<WorkoutsViewProps> = ({
                               
                               {editingExerciseId !== exercise.id && (
                                   <button 
-                                      onClick={() => setEditingExerciseId(exercise.id)} 
+                                      onClick={() => setEditingExerciseId(exercise.id)}
+                                      aria-label={`Edit ${exercise.name || 'exercise'}`}
                                       className="text-slate-300 hover:text-primary p-1"
                                   >
                                       <Edit2 className="w-4 h-4" />
@@ -949,13 +937,15 @@ export const WorkoutsView: React.FC<WorkoutsViewProps> = ({
 
                                         <div className="flex items-center border-l border-slate-100 pl-3 ml-2 space-x-1">
                                              <button 
-                                                onClick={() => handleEditRoutine(workout)} 
+                                                onClick={() => handleEditRoutine(workout)}
+                                                aria-label={`Edit ${workout.name}`}
                                                 className="p-2 text-slate-300 hover:text-primary hover:bg-indigo-50 rounded-lg transition-colors"
                                              >
                                                 <Edit2 className="w-4 h-4" />
                                              </button>
                                              <button 
-                                                onClick={() => onDeleteWorkout(workout.id)} 
+                                                onClick={() => onDeleteWorkout(workout.id)}
+                                                aria-label={`Delete ${workout.name}`}
                                                 className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                              >
                                                 <Trash2 className="w-4 h-4" />
@@ -1055,6 +1045,7 @@ export const WorkoutsView: React.FC<WorkoutsViewProps> = ({
                                         </div>
                                         <button 
                                             onClick={() => deletePlannedWorkout(item.date, item.workout.id)}
+                                            aria-label={`Delete scheduled ${item.workout.name}`}
                                             className="text-slate-300 hover:text-red-500 p-2"
                                         >
                                             <Trash2 className="w-4 h-4" />
