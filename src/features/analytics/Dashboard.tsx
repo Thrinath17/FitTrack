@@ -8,7 +8,7 @@ interface DashboardProps {
   records: AttendanceRecord[];
 }
 
-function getLocalInsight(records: AttendanceRecord[]): { message: string; trend: 'up' | 'down' | 'neutral' } {
+export function getLocalInsight(records: AttendanceRecord[]): { message: string; trend: 'up' | 'down' | 'neutral' } {
   const attended = records.filter(r => r.attended);
 
   if (attended.length === 0) {
@@ -20,7 +20,6 @@ function getLocalInsight(records: AttendanceRecord[]): { message: string; trend:
 
   const today = new Date();
 
-  // Current streak
   let streak = 0;
   for (let i = 0; i < 60; i++) {
     const d = format(subDays(today, i), 'yyyy-MM-dd');
@@ -31,7 +30,6 @@ function getLocalInsight(records: AttendanceRecord[]): { message: string; trend:
     }
   }
 
-  // Last 30 days attendance booleans
   const last30 = Array.from({ length: 30 }).map((_, i) => {
     const d = format(subDays(today, i), 'yyyy-MM-dd');
     return records.some(r => r.date === d && r.attended);
@@ -86,7 +84,6 @@ function getLocalInsight(records: AttendanceRecord[]): { message: string; trend:
 export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
   const insight = useMemo(() => getLocalInsight(records), [records]);
 
-  // Calculate basic stats
   const totalSessions = records.filter(r => r.attended).length;
 
   const last7Days = Array.from({ length: 7 }).map((_, i) => {
@@ -94,7 +91,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
     return records.some(r => isSameDay(new Date(r.date), d) && r.attended);
   }).filter(Boolean).length;
 
-  // Prepare Chart Data (This week)
   const start = startOfWeek(new Date(), { weekStartsOn: 1 });
   const end = endOfWeek(new Date(), { weekStartsOn: 1 });
   const weekDays = eachDayOfInterval({ start, end });
@@ -119,7 +115,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         <p className="text-sm text-slate-500">Your progress at a glance</p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-surface p-5 rounded-2xl shadow-sm border border-slate-100">
           <p className="text-sm font-medium text-slate-400 uppercase tracking-wide">Last 7 Days</p>
@@ -131,7 +126,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         </div>
       </div>
 
-      {/* Chart */}
       <div className="bg-surface p-6 rounded-2xl shadow-sm border border-slate-100">
         <h3 className="text-lg font-semibold text-slate-800 mb-6">Weekly Frequency</h3>
         <div className="h-52 w-full">
@@ -158,7 +152,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         </div>
       </div>
 
-      {/* Coach Insight */}
       <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10">
           <div className="flex items-center space-x-2 mb-3">
